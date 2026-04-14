@@ -224,5 +224,5 @@ Supports:
 
 ## 👨‍💻 Author
 
-Hrishita 
+Hrishita,
 Anushka 
