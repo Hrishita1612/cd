@@ -224,5 +224,5 @@ Supports:
 
 ## 👨‍💻 Author
 
-Hrishita Gohain
-Anushka Kakade
+Hrishita 
+Anushka 
