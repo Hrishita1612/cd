@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #080b14;
+    color: #c8d8f0;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  canvas#bg {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 0; opacity: 0.35;
+  }
+
+  .shell {
+    position: relative; z-index: 1;
+    max-width: 1000px; margin: 0 auto;
+    padding: 24px 20px 48px;
+  }
+
+  .header {
+    text-align: center; margin-bottom: 28px;
+  }
+  .header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(18px, 4vw, 30px);
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: #00f0ff;
+    text-shadow: 0 0 18px #00f0ff99, 0 0 40px #00f0ff44;
+    margin-bottom: 6px;
+  }
+  .header p {
+    font-size: 11px; color: #4a7a9b; letter-spacing: 0.2em; text-transform: uppercase;
+  }
+
+  .scan-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #00f0ff66, #bf00ff66, transparent);
+    margin: 0 0 28px;
+    animation: scan 3s ease-in-out infinite;
+  }
+  @keyframes scan { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .sidebar {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .sidebar-label {
+    font-size: 9px; letter-spacing: 0.25em; color: #4a7a9b;
+    text-transform: uppercase; padding: 0 4px 6px;
+    border-bottom: 1px solid #1a2a3a;
+    margin-bottom: 4px;
+  }
+
+  .formula-btn {
+    background: #0c1420;
+    border: 1px solid #1e3050;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: left;
+  }
+  .formula-btn:hover {
+    border-color: #00f0ff55;
+    background: #0f1c2e;
+    box-shadow: 0 0 12px #00f0ff18;
+  }
+  .formula-btn.active {
+    border-color: #00f0ff;
+    background: #061830;
+    box-shadow: 0 0 16px #00f0ff33, inset 0 0 12px #00f0ff0a;
+  }
+  .formula-btn .fn-name {
+    font-size: 12px; font-weight: 700;
+    color: #00f0ff;
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 8px #00f0ff66;
+  }
+  .formula-btn.active .fn-name { color: #00f0ff; }
+  .formula-btn .fn-sig {
+    font-size: 9px; color: #3a6080; margin-top: 3px;
+    letter-spacing: 0.03em;
+  }
+  .formula-btn.active .fn-sig { color: #4a8aab; }
+
+  .right-panel {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  .formula-display {
+    background: #0a1522;
+    border: 1px solid #1e3050;
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 64px;
+    font-size: 13px;
+    color: #5a9abf;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .formula-display .fml-icon {
+    font-size: 20px;
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    background: #061428;
+    border: 1px solid #1a3050;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: #bf00ff;
+    text-shadow: 0 0 10px #bf00ff88;
+    font-family: 'Orbitron', monospace;
+    font-size: 14px; font-weight: 900;
+  }
+  .formula-display .fml-eq {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #7abfe0;
+  }
+
+  .inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .inputs-grid.cols1 { grid-template-columns: 1fr; }
+  .inputs-grid.cols4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .input-group label {
+    display: block;
+    font-size: 9px; letter-spacing: 0.2em; color: #4a7a9b;
+    text-transform: uppercase; margin-bottom: 5px;
+  }
+  .input-group input {
+    width: 100%;
+    background: #0a1220;
+    border: 1px solid #1e3050;
+    border-radius: 5px;
+    padding: 9px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: #e0f4ff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input-group input:focus {
+    border-color: #00f0ff;
+    box-shadow: 0 0 10px #00f0ff22;
+  }
+  .input-group input::placeholder { color: #2a4060; }
+
+  .run-btn {
+    width: 100%;
+    background: #061828;
+    border: 1px solid #00f0ff;
+    border-radius: 6px;
+    padding: 13px;
+    font-family: 'Orbitron', monospace;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #00f0ff;
+    cursor: pointer;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px #00f0ff99;
+    box-shadow: 0 0 18px #00f0ff22;
+    transition: all 0.18s;
+    position: relative; overflow: hidden;
+  }
+  .run-btn:hover {
+    background: #0a2038;
+    box-shadow: 0 0 30px #00f0ff44, 0 0 60px #00f0ff18;
+  }
+  .run-btn:active { transform: scale(0.99); }
+  .run-btn .pulse {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, #00f0ff18, transparent 70%);
+    animation: pulse-btn 2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse-btn { 0%,100%{opacity:0} 50%{opacity:1} }
+
+  .output-box {
+    background: #06101e;
+    border: 1px solid #1a2a3a;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .output-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: #0a1828;
+    border-bottom: 1px solid #1a2a3a;
+  }
+  .output-header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .dot-r { background: #ff4a6a; }
+  .dot-y { background: #ffb340; }
+  .dot-g { background: #00d084; }
+  .output-header .out-label {
+    font-size: 9px; letter-spacing: 0.2em; color: #3a6070;
+    text-transform: uppercase; margin-left: 4px;
+  }
+  .output-content {
+    padding: 16px;
+    min-height: 160px;
+    font-size: 12.5px;
+    line-height: 2;
+    color: #4a7a9b;
+    white-space: pre-wrap;
+  }
+  .output-content .step { color: #5abfdf; }
+  .output-content .result {
+    color: #00ff9f;
+    font-weight: 700;
+    text-shadow: 0 0 10px #00ff9f66;
+  }
+  .output-content .err { color: #ff4a6a; }
+  .output-content .info { color: #bf00ff; text-shadow: 0 0 8px #bf00ff44; }
+  .output-content .placeholder { color: #1e3a50; font-style: italic; font-size: 11px; }
+
+  .error-msg {
+    color: #ff4a6a;
+    font-size: 11px;
+    background: #1a0a0e;
+    border: 1px solid #3a1020;
+    border-radius: 5px;
+    padding: 8px 12px;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+
+  @media (max-width: 640px) {
+    .layout { grid-template-columns: 1fr; }
+    .inputs-grid.cols4 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="shell">
+  <div class="header">
+    <h1>MATH FORMULA COMPILER</h1>
+    <p>symbolic expression evaluator &nbsp;/&nbsp; step-by-step solutions</p>
+  </div>
+  <div class="scan-line"></div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-label">Formulas</div>
+      <button class="formula-btn active" data-id="linear">
+        <div class="fn-name">LINEAR</div>
+        <div class="fn-sig">ax + b = 0</div>
+      </button>
+      <button class="formula-btn" data-id="quadratic">
+        <div class="fn-name">QUADRATIC</div>
+        <div class="fn-sig">ax² + bx + c = 0</div>
+      </button>
+      <button class="formula-btn" data-id="discriminant">
+        <div class="fn-name">DISCRIMINANT</div>
+        <div class="fn-sig">D = b² - 4ac</div>
+      </button>
+      <button class="formula-btn" data-id="distance">
+        <div class="fn-name">DISTANCE</div>
+        <div class="fn-sig">√((x₂-x₁)² + (y₂-y₁)²)</div>
+      </button>
+      <button class="formula-btn" data-id="circle">
+        <div class="fn-name">CIRCLE AREA</div>
+        <div class="fn-sig">A = π × r²</div>
+      </button>
+      <button class="formula-btn" data-id="apterm">
+        <div class="fn-name">AP TERM</div>
+        <div class="fn-sig">aₙ = a + (n-1)d</div>
+      </button>
+    </div>
+
+    <div class="right-panel">
+      <div class="formula-display" id="fml-display">
+        <div class="fml-icon" id="fml-icon">f</div>
+        <div>
+          <div style="font-size:9px;letter-spacing:.2em;color:#3a6080;text-transform:uppercase;margin-bottom:4px" id="fml-title">Linear Equation</div>
+          <div class="fml-eq" id="fml-eq">x = -b / a</div>
+        </div>
+      </div>
+
+      <div class="inputs-grid cols2" id="inputs-grid"></div>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <button class="run-btn" id="run-btn">
+        <span class="pulse"></span>
+        &#x25B6;&nbsp; COMPILE &amp; RUN
+      </button>
+
+      <div class="output-box">
+        <div class="output-header">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <span class="out-label">stdout — evaluation output</span>
+        </div>
+        <div class="output-content" id="output">
+          <span class="placeholder">// Select a formula and enter values to begin...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const formulas = {
+  linear: {
+    title: "Linear Equation", icon: "x",
+    eq: "x = -b / a",
+    cols: "cols2",
+    fields: [
+      { id:"a", label:"a — coefficient", ph:"e.g. 2" },
+      { id:"b", label:"b — constant", ph:"e.g. 4" }
+    ],
+    validate(v) {
+      if(v.a===0) return "Coefficient 'a' cannot be zero";
+      return null;
+    },
+    solve(v) {
+      const x = -v.b / v.a;
+      return [
+        {type:"step", text:`Step 1 : x = -b / a`},
+        {type:"step", text:`Step 2 : x = -(${v.b}) / ${v.a}`},
+        {type:"result", text:`Result : x = ${fmt(x)}`},
+      ];
+    }
+  },
+  quadratic: {
+    title: "Quadratic Equation", icon: "x²",
+    eq: "x = (-b ± √D) / 2a",
+    cols: "cols2",
+    fields: [
+      { id:"a", label:"a — x² coeff", ph:"e.g. 1" },
+      { id:"b", label:"b — x coeff", ph:"e.g. -5" },
+      { id:"c", label:"c — constant", ph:"e.g. 6" }
+    ],
+    validate(v) {
+      if(v.a===0) return "Coefficient 'a' cannot be zero";
+      return null;
+    },
+    solve(v) {
+      const D = v.b*v.b - 4*v.a*v.c;
+      const lines = [];
+      lines.push({type:"step", text:`Step 1 : D = b² - 4ac = ${fmt(D)}`});
+      if(D > 0) {
+        const x1 = (-v.b + Math.sqrt(D))/(2*v.a);
+        const x2 = (-v.b - Math.sqrt(D))/(2*v.a);
+        lines.push({type:"step", text:`Step 2 : √D = ${fmt(Math.sqrt(D))}`});
+        lines.push({type:"step", text:`Step 3 : x₁ = (-b + √D) / 2a = ${fmt(x1)}`});
+        lines.push({type:"step", text:`Step 4 : x₂ = (-b - √D) / 2a = ${fmt(x2)}`});
+        lines.push({type:"result", text:`Result : x₁ = ${fmt(x1)},  x₂ = ${fmt(x2)}`});
+      } else if(D === 0) {
+        const x = -v.b/(2*v.a);
+        lines.push({type:"step", text:`Step 2 : x = -b / 2a = ${fmt(x)}`});
+        lines.push({type:"result", text:`Result : x = ${fmt(x)} (repeated root)`});
+      } else {
+        const re = -v.b/(2*v.a);
+        const im = Math.sqrt(-D)/(2*v.a);
+        lines.push({type:"step", text:`Step 2 : Complex roots (D < 0)`});
+        lines.push({type:"step", text:`Step 3 : Real part = ${fmt(re)}`});
+        lines.push({type:"step", text:`Step 4 : Imaginary part = ${fmt(im)}`});
+        lines.push({type:"result", text:`Result : x₁ = ${fmt(re)} + ${fmt(im)}i`});
+        lines.push({type:"result", text:`         x₂ = ${fmt(re)} − ${fmt(im)}i`});
+      }
+      return lines;
+    }
+  },
+  discriminant: {
+    title: "Discriminant", icon: "D",
+    eq: "D = b² - 4ac",
+    cols: "cols2",
+    fields: [
+      { id:"a", label:"a", ph:"e.g. 1" },
+      { id:"b", label:"b", ph:"e.g. -3" },
+      { id:"c", label:"c", ph:"e.g. 2" }
+    ],
+    validate(v) {
+      if(v.a===0) return "Coefficient 'a' cannot be zero";
+      return null;
+    },
+    solve(v) {
+      const D = v.b*v.b - 4*v.a*v.c;
+      const lines = [
+        {type:"step", text:`Step 1 : D = b² - 4ac`},
+        {type:"step", text:`Step 2 : D = (${v.b})² - 4·(${v.a})·(${v.c})`},
+        {type:"step", text:`Step 3 : D = ${fmt(v.b*v.b)} - ${fmt(4*v.a*v.c)}`},
+        {type:"result", text:`Result : D = ${fmt(D)}`},
+      ];
+      if(D>0) lines.push({type:"info", text:`Info   : Two distinct real roots`});
+      else if(D===0) lines.push({type:"info", text:`Info   : One repeated real root`});
+      else lines.push({type:"info", text:`Info   : Two complex roots`});
+      return lines;
+    }
+  },
+  distance: {
+    title: "Distance Formula", icon: "d",
+    eq: "d = √((x₂-x₁)² + (y₂-y₁)²)",
+    cols: "cols4",
+    fields: [
+      { id:"x1", label:"x₁", ph:"0" },
+      { id:"y1", label:"y₁", ph:"0" },
+      { id:"x2", label:"x₂", ph:"3" },
+      { id:"y2", label:"y₂", ph:"4" }
+    ],
+    validate() { return null; },
+    solve(v) {
+      const dx = v.x2-v.x1, dy = v.y2-v.y1;
+      const d = Math.sqrt(dx*dx+dy*dy);
+      return [
+        {type:"step", text:`Step 1 : dx = x₂ - x₁ = ${fmt(v.x2)} - ${fmt(v.x1)} = ${fmt(dx)}`},
+        {type:"step", text:`Step 2 : dy = y₂ - y₁ = ${fmt(v.y2)} - ${fmt(v.y1)} = ${fmt(dy)}`},
+        {type:"step", text:`Step 3 : dx² = ${fmt(dx*dx)},  dy² = ${fmt(dy*dy)}`},
+        {type:"step", text:`Step 4 : dx² + dy² = ${fmt(dx*dx+dy*dy)}`},
+        {type:"step", text:`Step 5 : d = √${fmt(dx*dx+dy*dy)}`},
+        {type:"result", text:`Result : d = ${fmt(d)}`},
+      ];
+    }
+  },
+  circle: {
+    title: "Circle Area", icon: "π",
+    eq: "A = π × r²",
+    cols: "cols1",
+    fields: [
+      { id:"r", label:"r — radius", ph:"e.g. 7" }
+    ],
+    validate(v) {
+      if(v.r<=0) return "Radius must be greater than 0";
+      return null;
+    },
+    solve(v) {
+      const A = Math.PI * v.r * v.r;
+      return [
+        {type:"step", text:`Step 1 : A = π × r²`},
+        {type:"step", text:`Step 2 : r² = ${fmt(v.r)}² = ${fmt(v.r*v.r)}`},
+        {type:"step", text:`Step 3 : A = ${fmt(Math.PI)} × ${fmt(v.r*v.r)}`},
+        {type:"result", text:`Result : A = ${fmt(A)}`},
+      ];
+    }
+  },
+  apterm: {
+    title: "Arithmetic Progression — nth Term", icon: "aₙ",
+    eq: "aₙ = a + (n - 1) × d",
+    cols: "cols2",
+    fields: [
+      { id:"a", label:"a — first term", ph:"e.g. 2" },
+      { id:"n", label:"n — term number", ph:"e.g. 10" },
+      { id:"d", label:"d — common diff", ph:"e.g. 3" }
+    ],
+    validate(v) {
+      if(v.n < 1 || Math.floor(v.n)!==v.n) return "Term number 'n' must be a positive integer";
+      return null;
+    },
+    solve(v) {
+      const nm1 = v.n-1, nd = nm1*v.d, an = v.a+nd;
+      return [
+        {type:"step", text:`Step 1 : aₙ = a + (n-1) × d`},
+        {type:"step", text:`Step 2 : (n-1) = ${v.n} - 1 = ${nm1}`},
+        {type:"step", text:`Step 3 : (n-1)×d = ${nm1} × ${v.d} = ${fmt(nd)}`},
+        {type:"step", text:`Step 4 : a${v.n} = ${v.a} + ${fmt(nd)}`},
+        {type:"result", text:`Result : a${v.n} = ${fmt(an)}`},
+      ];
+    }
+  }
+};
+
+function fmt(n) {
+  if(Number.isInteger(n)) return String(n);
+  return parseFloat(n.toFixed(8)).toString();
+}
+
+let current = "linear";
+const inputsGrid = document.getElementById("inputs-grid");
+const outputEl = document.getElementById("output");
+const errorEl = document.getElementById("error-msg");
+
+function buildInputs(id) {
+  const f = formulas[id];
+  inputsGrid.className = "inputs-grid " + f.cols;
+  inputsGrid.innerHTML = f.fields.map(fd => `
+    <div class="input-group">
+      <label>${fd.label}</label>
+      <input type="number" id="inp-${fd.id}" placeholder="${fd.ph}" step="any">
+    </div>
+  `).join("");
+  document.getElementById("fml-icon").textContent = f.icon;
+  document.getElementById("fml-title").textContent = f.title;
+  document.getElementById("fml-eq").textContent = f.eq;
+}
+
+document.querySelectorAll(".formula-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".formula-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    current = btn.dataset.id;
+    buildInputs(current);
+    outputEl.innerHTML = `<span class="placeholder">// Enter values and click COMPILE & RUN...</span>`;
+    errorEl.classList.remove("show");
+  });
+});
+
+document.getElementById("run-btn").addEventListener("click", () => {
+  const f = formulas[current];
+  const vals = {};
+  let missing = false;
+  for(const fd of f.fields) {
+    const el = document.getElementById("inp-"+fd.id);
+    if(el.value === "" || el.value === null) { missing = true; break; }
+    vals[fd.id] = parseFloat(el.value);
+  }
+  if(missing) {
+    showError("Please fill in all input fields.");
+    return;
+  }
+  const err = f.validate(vals);
+  if(err) { showError(err); return; }
+  errorEl.classList.remove("show");
+
+  const lines = f.solve(vals);
+  let html = `<span style="color:#1e4060;font-size:10px;letter-spacing:.15em">// ${f.title.toUpperCase()} — ${new Date().toLocaleTimeString()}\n\n</span>`;
+  for(const l of lines) {
+    if(l.type==="step") html += `<span class="step">${l.text}</span>\n`;
+    else if(l.type==="result") html += `<span class="result">${l.text}</span>\n`;
+    else if(l.type==="info") html += `<span class="info">${l.text}</span>\n`;
+  }
+  outputEl.innerHTML = html;
+  typewriterEffect(outputEl);
+});
+
+function showError(msg) {
+  errorEl.textContent = "Error: " + msg;
+  errorEl.classList.add("show");
+}
+
+function typewriterEffect(el) {
+  el.style.opacity = "0";
+  let start = null;
+  function step(ts) {
+    if(!start) start = ts;
+    const p = Math.min((ts-start)/300, 1);
+    el.style.opacity = p;
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+buildInputs("linear");
+
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+let W, H, particles = [];
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+function makeParticle() {
+  return {
+    x: Math.random()*W, y: Math.random()*H,
+    vx: (Math.random()-.5)*.4, vy: (Math.random()-.5)*.4,
+    r: Math.random()*1.5+.5,
+    a: Math.random(),
+    char: ["∑","∫","π","√","∞","Δ","∂","α","β","γ","λ","θ","φ"][Math.floor(Math.random()*13)],
+    isMath: Math.random()<.25
+  };
+}
+
+function initParticles() {
+  particles = Array.from({length: 80}, makeParticle);
+}
+
+function drawBg() {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = "#080b14";
+  ctx.fillRect(0,0,W,H);
+
+  const gridSize = 48;
+  ctx.strokeStyle = "#0a1628";
+  ctx.lineWidth = 0.5;
+  for(let x=0;x<W;x+=gridSize){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+  }
+  for(let y=0;y<H;y+=gridSize){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  for(const p of particles) {
+    if(p.isMath) {
+      ctx.font = `${12+p.r*3}px 'JetBrains Mono'`;
+      ctx.fillStyle = `rgba(0,180,255,${p.a*0.25})`;
+      ctx.fillText(p.char, p.x, p.y);
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(0,240,255,${p.a*0.3})`;
+      ctx.fill();
+    }
+    p.x += p.vx; p.y += p.vy;
+    if(p.x<-20) p.x=W+20;
+    if(p.x>W+20) p.x=-20;
+    if(p.y<-20) p.y=H+20;
+    if(p.y>H+20) p.y=-20;
+    p.a = 0.3 + Math.sin(Date.now()/1200+p.x)*0.25;
+  }
+
+  for(let i=0;i<particles.length;i++) {
+    for(let j=i+1;j<particles.length;j++) {
+      const dx=particles[i].x-particles[j].x;
+      const dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<100) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(0,240,255,${(1-dist/100)*0.08})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+
+  requestAnimationFrame(drawBg);
+}
+
+window.addEventListener("resize", () => { resize(); initParticles(); });
+resize(); initParticles(); drawBg();
+</script>
+</body>
+</html>
